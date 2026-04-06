@@ -40,7 +40,7 @@ class EmbeddingConfig:
     - 这里默认给出你本机的本地路径示例。
     """
 
-    model_name_or_path: str = "./models/bge-m3"
+    model_name_or_path: str = "BAAI/bge-m3"
     device: str = "cpu"
     normalize_embeddings: bool = True
 
@@ -224,7 +224,7 @@ def load_config() -> AppConfig:
     embedding = EmbeddingConfig(
         model_name_or_path=_get_env(
             "EMBEDDING_MODEL",
-            "./models/bge-m3",
+            "BAAI/bge-m3",
         ),
         device=embedding_device,
         normalize_embeddings=_get_env("EMBEDDING_NORMALIZE", "true").lower() in {"1", "true", "yes", "y"},
