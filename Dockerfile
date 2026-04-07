@@ -38,6 +38,6 @@ RUN set -eux; \
 
 COPY . .
 
-EXPOSE 8511
+EXPOSE 8521
 
-CMD ["streamlit", "run", "admin.py", "--server.port=8511", "--server.address=0.0.0.0", "--server.headless=true"]
+CMD ["streamlit", "run", "admin.py", "--server.port=8521", "--server.address=0.0.0.0", "--server.headless=true"]

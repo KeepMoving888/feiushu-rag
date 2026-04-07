@@ -7,8 +7,13 @@
 ## ⚡ 30 秒快速体验
 
 ```bash
-docker pull keepzhe/feishu-rag:v1.0.1
-docker run --rm -p 8521:8511 --env-file .env keepzhe/feishu-rag:v1.0.1
+# 方式 1：使用 latest（推荐，始终获取最新版本）
+docker pull keepzhe/feishu-rag:latest
+docker run --rm -p 8521:8521 --env-file .env keepzhe/feishu-rag:latest
+
+# 方式 2：使用固定版本号（v1.0.3）
+docker pull keepzhe/feishu-rag:v1.0.3
+docker run --rm -p 8521:8521 --env-file .env keepzhe/feishu-rag:v1.0.3
 ```
 
 浏览器打开：`http://localhost:8521`
@@ -81,7 +86,7 @@ streamlit run admin.py
 # 构建轻量 Docker 镜像（默认使用 requirements.api.txt）
 docker build -t keepzhe/feishu-rag:api-slim .
 # 启动容器（建议映射到 8521，避免本机端口冲突）
-docker run --rm -p 8521:8511 --env-file .env keepzhe/feishu-rag:api-slim
+docker run --rm -p 8521:8521 --env-file .env keepzhe/feishu-rag:api-slim
 ```
 
 ## ⚙️ 配置说明
