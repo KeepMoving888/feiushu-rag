@@ -4,7 +4,7 @@
 
 - 项目技术展示文档：[`PROJECT_SHOWCASE.md`](./PROJECT_SHOWCASE.md)
 
-## ⚡ 30 秒快速体验（面试官）
+## ⚡ 30 秒快速体验
 
 ```bash
 docker pull keepzhe/feishu-rag:v1.0.1
