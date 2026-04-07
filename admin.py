@@ -60,10 +60,16 @@ try:
     init_state()
 except VectorStoreError as exc:
     st.error(f"向量库初始化失败：{exc}")
-    st.info(
-        "请先在项目目录放置本地嵌入模型，并在 .env 中设置 EMBEDDING_MODEL 为相对路径，"
-        "例如：EMBEDDING_MODEL=./models/bge-m3"
-    )
+    if CONFIG.embedding.provider == "api":
+        st.info(
+            "当前为 API embedding 模式，请检查 .env："
+            "EMBEDDING_PROVIDER=api、EMBEDDING_MODEL、EMBEDDING_API_KEY、EMBEDDING_BASE_URL。"
+        )
+    else:
+        st.info(
+            "当前为本地 embedding 模式，请在项目目录放置本地模型，并在 .env 设置 EMBEDDING_MODEL 路径，"
+            "例如：EMBEDDING_MODEL=./models/bge-m3"
+        )
     st.stop()
 
 

@@ -12,7 +12,6 @@ from __future__ import annotations
 from typing import Any
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_huggingface import HuggingFaceEmbeddings
 from openai import OpenAI
 
 from config import CONFIG
@@ -50,11 +49,24 @@ class VectorStoreManager:
             self.collection_name = collection_name or CONFIG.vector_store.collection_name
             self.embeddings = self._init_embeddings()
 
-            self.vs = Chroma(
-                collection_name=self.collection_name,
-                embedding_function=self.embeddings,
-                persist_directory=self.persist_directory,
-            )
+            try:
+                self.vs = Chroma(
+                    collection_name=self.collection_name,
+                    embedding_function=self.embeddings,
+                    persist_directory=self.persist_directory,
+                )
+            except Exception as chroma_exc:
+                msg = str(chroma_exc)
+                # 兼容历史 Chroma SQLite schema 变更：自动切换到新目录重建
+                if "no such column: collections.topic" in msg:
+                    self.persist_directory = f"{self.persist_directory}_v2"
+                    self.vs = Chroma(
+                        collection_name=self.collection_name,
+                        embedding_function=self.embeddings,
+                        persist_directory=self.persist_directory,
+                    )
+                else:
+                    raise
         except Exception as exc:
             raise VectorStoreError(f"初始化向量库失败: {exc}") from exc
 
@@ -75,6 +87,16 @@ class VectorStoreManager:
                 api_key=embedding_cfg.api_key,
                 base_url=embedding_cfg.base_url,
             )
+
+        # local 模式依赖 langchain-huggingface（仅在需要时动态导入）
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+        except Exception as exc:
+            raise VectorStoreError(
+                "当前环境缺少 local embedding 依赖。"
+                "若使用 API 模式请设置 EMBEDDING_PROVIDER=api；"
+                "若要用 local 模式请安装 langchain-huggingface/sentence-transformers。"
+            ) from exc
 
         requested_device = embedding_cfg.device
         model_kwargs = {"device": requested_device}

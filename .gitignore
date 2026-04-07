@@ -43,9 +43,11 @@ test_env/
 # Data Files (用户数据，不应上传)
 data/uploads/*
 data/chroma_db/*
+data/chroma_db_v2/*
 data/state/*
 !data/uploads/.gitkeep
 !data/chroma_db/.gitkeep
+!data/chroma_db_v2/.gitkeep
 !data/state/.gitkeep
 
 # Logs
