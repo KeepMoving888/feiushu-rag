@@ -1,0 +1,4 @@
+[server]
+# 避免与常见 8501/8502 冲突
+port = 8511
+headless = true

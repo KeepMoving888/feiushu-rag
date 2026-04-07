@@ -11,13 +11,32 @@
 from __future__ import annotations
 from typing import Any
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
+from langchain_huggingface import HuggingFaceEmbeddings
+from openai import OpenAI
+
 from config import CONFIG
 
 
 class VectorStoreError(Exception):
     """向量库异常。"""
+
+
+class OpenAICompatibleEmbeddings:
+    """兼容 OpenAI 接口的 Embedding 适配器（避免版本参数不兼容）。"""
+
+    def __init__(self, model: str, api_key: str, base_url: str) -> None:
+        self.model = model
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        safe_texts = [t if isinstance(t, str) else str(t) for t in texts]
+        resp = self.client.embeddings.create(model=self.model, input=safe_texts)
+        return [item.embedding for item in resp.data]
+
+    def embed_query(self, text: str) -> list[float]:
+        resp = self.client.embeddings.create(model=self.model, input=text if isinstance(text, str) else str(text))
+        return resp.data[0].embedding
 
 
 class VectorStoreManager:
@@ -29,26 +48,7 @@ class VectorStoreManager:
         try:
             self.persist_directory = CONFIG.vector_store.persist_directory
             self.collection_name = collection_name or CONFIG.vector_store.collection_name
-
-            requested_device = CONFIG.embedding.device
-            model_kwargs = {"device": requested_device}
-
-            # 优先按配置设备初始化，若 GPU 不可用自动降级到 CPU
-            try:
-                self.embeddings = HuggingFaceEmbeddings(
-                    model_name=CONFIG.embedding.model_name_or_path,
-                    model_kwargs=model_kwargs,
-                    encode_kwargs={"normalize_embeddings": CONFIG.embedding.normalize_embeddings},
-                )
-            except Exception as emb_exc:
-                if requested_device == "cuda":
-                    self.embeddings = HuggingFaceEmbeddings(
-                        model_name=CONFIG.embedding.model_name_or_path,
-                        model_kwargs={"device": "cpu"},
-                        encode_kwargs={"normalize_embeddings": CONFIG.embedding.normalize_embeddings},
-                    )
-                else:
-                    raise emb_exc
+            self.embeddings = self._init_embeddings()
 
             self.vs = Chroma(
                 collection_name=self.collection_name,
@@ -57,6 +57,43 @@ class VectorStoreManager:
             )
         except Exception as exc:
             raise VectorStoreError(f"初始化向量库失败: {exc}") from exc
+
+    @staticmethod
+    def _init_embeddings() -> Any:
+        """根据配置初始化 embedding（local/api）。"""
+
+        embedding_cfg = CONFIG.embedding
+
+        if embedding_cfg.provider == "api":
+            if not embedding_cfg.api_key:
+                raise VectorStoreError("EMBEDDING_PROVIDER=api 时缺少 API Key，请设置 EMBEDDING_API_KEY 或 OPENAI_API_KEY")
+            if not embedding_cfg.base_url:
+                raise VectorStoreError("EMBEDDING_PROVIDER=api 时缺少 BASE_URL，请设置 EMBEDDING_BASE_URL")
+
+            return OpenAICompatibleEmbeddings(
+                model=embedding_cfg.model_name_or_path,
+                api_key=embedding_cfg.api_key,
+                base_url=embedding_cfg.base_url,
+            )
+
+        requested_device = embedding_cfg.device
+        model_kwargs = {"device": requested_device}
+
+        # local 模式：优先按配置设备初始化，若 GPU 不可用自动降级到 CPU
+        try:
+            return HuggingFaceEmbeddings(
+                model_name=embedding_cfg.model_name_or_path,
+                model_kwargs=model_kwargs,
+                encode_kwargs={"normalize_embeddings": embedding_cfg.normalize_embeddings},
+            )
+        except Exception as emb_exc:
+            if requested_device == "cuda":
+                return HuggingFaceEmbeddings(
+                    model_name=embedding_cfg.model_name_or_path,
+                    model_kwargs={"device": "cpu"},
+                    encode_kwargs={"normalize_embeddings": embedding_cfg.normalize_embeddings},
+                )
+            raise emb_exc
 
     def switch_collection(self, collection_name: str) -> None:
         """切换知识库 collection。"""

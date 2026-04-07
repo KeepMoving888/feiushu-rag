@@ -305,6 +305,34 @@ if auto_result:
         f"自动加载状态：扫描 {auto_result.get('scanned', 0)} 个文件，"
         f"新增/更新 {auto_result.get('processed', 0)}，跳过 {auto_result.get('skipped', 0)}，失败 {auto_result.get('failed', 0)}"
     )
+    details = auto_result.get("details", []) if isinstance(auto_result.get("details"), list) else []
+    if details:
+        with st.expander("查看自动导入详情"):
+            st.text("\n".join(details[:200]))
+
+reingest_col1, reingest_col2 = st.columns([1, 5])
+with reingest_col1:
+    if st.button("重新自动导入 data", help="清空自动导入缓存并重新扫描 ./data 文档"):
+        try:
+            state_path = _auto_ingest_state_path()
+            if state_path.exists():
+                state_path.unlink(missing_ok=True)
+
+            with st.spinner("正在重新扫描并导入 data 目录..."):
+                auto_result = auto_ingest_data_files(vector_store, doc_processor)
+
+            st.session_state.auto_ingest_done = True
+            st.session_state.auto_ingest_result = auto_result
+            st.success(
+                f"重导入完成：扫描 {auto_result.get('scanned', 0)}，"
+                f"新增/更新 {auto_result.get('processed', 0)}，"
+                f"跳过 {auto_result.get('skipped', 0)}，失败 {auto_result.get('failed', 0)}"
+            )
+            st.rerun()
+        except Exception as exc:
+            st.error(f"重新自动导入失败：{exc}")
+with reingest_col2:
+    st.caption("如已清空知识库，请点击“重新自动导入 data”重新把 ./data 文件入库。")
 
 col1, col2, col3 = st.columns([2, 2, 2])
 
@@ -318,7 +346,12 @@ if st.session_state.current_kb not in kb_list:
     kb_list.append(st.session_state.current_kb)
 
 with col1:
-    selected_kb = st.selectbox("切换知识库", options=kb_list, index=kb_list.index(st.session_state.current_kb))
+    selected_kb = st.selectbox(
+        "切换知识库",
+        options=kb_list,
+        index=kb_list.index(st.session_state.current_kb),
+        key="switch_kb_name",
+    )
     if st.button("应用切换"):
         try:
             vector_store.switch_collection(selected_kb)
@@ -425,6 +458,28 @@ if st.button("一键清空当前知识库切片"):
         st.rerun()
     except VectorStoreError as exc:
         st.error(f"清空失败：{exc}")
+
+if st.button("一键清空并重导入 data", help="清空当前知识库后，删除自动导入缓存并重新扫描 ./data"):
+    try:
+        deleted_count = vector_store.clear_current_collection()
+        state_path = _auto_ingest_state_path()
+        if state_path.exists():
+            state_path.unlink(missing_ok=True)
+
+        with st.spinner("正在重导入 data 目录..."):
+            auto_result = auto_ingest_data_files(vector_store, doc_processor)
+
+        st.session_state.auto_ingest_done = True
+        st.session_state.auto_ingest_result = auto_result
+        st.success(
+            f"重建完成：已清空 {deleted_count} 个切片；"
+            f"扫描 {auto_result.get('scanned', 0)}，"
+            f"新增/更新 {auto_result.get('processed', 0)}，"
+            f"跳过 {auto_result.get('skipped', 0)}，失败 {auto_result.get('failed', 0)}"
+        )
+        st.rerun()
+    except Exception as exc:
+        st.error(f"一键重建失败：{exc}")
 
 if chunks:
     chunk_options = [f"{c['id']} | {c.get('metadata', {}).get('filename', 'unknown')}" for c in chunks]
@@ -795,7 +850,11 @@ question = st.text_input("请输入问题")
 
 if st.button("开始问答"):
     try:
-        result = rag_chain.ask(question=question, top_k=5)
+        result = rag_chain.ask(
+            question=question,
+            top_k=5,
+            collection_name=st.session_state.current_kb,
+        )
 
         # 1) 答案区（贴近你给的样式）
         st.markdown("## 💡 答案")

@@ -59,8 +59,10 @@ cp .env.example .env
 # 启动后端API
 python main.py
 
-# 或启动管理后台
+# 或启动管理后台（默认端口改为 8511）
 streamlit run admin.py
+# 若需临时指定端口：
+# streamlit run admin.py --server.port 8511
 ```
 
 ## ⚙️ 配置说明

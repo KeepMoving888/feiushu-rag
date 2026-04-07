@@ -31,18 +31,19 @@ class FeishuConfig:
 
 @dataclass
 class EmbeddingConfig:
-    """嵌入模型配置（BGE-M3，本地 Sentence-Transformers 加载）。
+    """嵌入模型配置。
 
-    说明：
-    - model_name_or_path 支持两类值：
-      1) 本地路径（推荐，内网可用，启动更稳定）
-      2) HuggingFace / ModelScope 模型名
-    - 这里默认给出你本机的本地路径示例。
+    provider 可选：
+    - local: 本地/HuggingFace 模型（Sentence-Transformers）
+    - api:   在线 OpenAI 兼容 Embedding 接口
     """
 
+    provider: str = "local"  # local | api
     model_name_or_path: str = "BAAI/bge-m3"
     device: str = "cpu"
     normalize_embeddings: bool = True
+    api_key: str = ""
+    base_url: str = ""
 
 
 @dataclass
@@ -210,8 +211,12 @@ def load_config() -> AppConfig:
     )
 
     # -----------------------------
-    # 2) 嵌入模型配置（BGE-M3）
+    # 2) 嵌入模型配置（local / api 双模式）
     # -----------------------------
+    embedding_provider = _get_env("EMBEDDING_PROVIDER", "local").lower()
+    if embedding_provider not in {"local", "api"}:
+        embedding_provider = "local"
+
     embedding_device_raw = _get_env("EMBEDDING_DEVICE", "cpu").lower()
     # 设备别名归一化：支持 gpu/cpu/cuda，默认走 CPU（更适合 Streamlit Cloud）
     if embedding_device_raw in {"gpu", "cuda", "cuda:0"}:
@@ -222,12 +227,14 @@ def load_config() -> AppConfig:
         embedding_device = "cpu"
 
     embedding = EmbeddingConfig(
-        model_name_or_path=_get_env(
-            "EMBEDDING_MODEL",
-            "BAAI/bge-m3",
-        ),
+        provider=embedding_provider,
+        model_name_or_path=_get_env("EMBEDDING_MODEL", "BAAI/bge-m3"),
         device=embedding_device,
         normalize_embeddings=_get_env("EMBEDDING_NORMALIZE", "true").lower() in {"1", "true", "yes", "y"},
+        # 兼容两种命名：EMBEDDING_API_KEY / OPENAI_API_KEY
+        api_key=_get_env("EMBEDDING_API_KEY") or _get_env("OPENAI_API_KEY"),
+        # 兼容两种命名：EMBEDDING_BASE_URL / LLM_API_BASE_URL
+        base_url=_get_env("EMBEDDING_BASE_URL") or _get_env("LLM_API_BASE_URL"),
     )
 
     # -----------------------------
