@@ -213,9 +213,9 @@ def load_config() -> AppConfig:
     # -----------------------------
     # 2) 嵌入模型配置（local / api 双模式）
     # -----------------------------
-    embedding_provider = _get_env("EMBEDDING_PROVIDER", "local").lower()
+    embedding_provider = _get_env("EMBEDDING_PROVIDER", "api").lower()
     if embedding_provider not in {"local", "api"}:
-        embedding_provider = "local"
+        embedding_provider = "api"
 
     embedding_device_raw = _get_env("EMBEDDING_DEVICE", "cpu").lower()
     # 设备别名归一化：支持 gpu/cpu/cuda，默认走 CPU（更适合 Streamlit Cloud）
@@ -248,9 +248,9 @@ def load_config() -> AppConfig:
     # -----------------------------
     # 4) 大模型配置（双模式）
     # -----------------------------
-    llm_mode = _get_env("LLM_MODE", "ollama").lower()
+    llm_mode = _get_env("LLM_MODE", "api").lower()
     if llm_mode not in {"api", "ollama"}:
-        llm_mode = "ollama"
+        llm_mode = "api"
 
     api_config = APIModelConfig(
         provider=_get_env("LLM_API_PROVIDER", "doubao"),
